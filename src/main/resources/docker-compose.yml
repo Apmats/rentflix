@@ -1,0 +1,16 @@
+version: '3.3'
+services:
+    rentflixpostgres:
+        container_name: rentflixpostgres
+        image: postgres:9.5
+        volumes:
+            - sample_db:/var/lib/postgresql/data
+        environment:
+            - POSTGRES_PASSWORD=myrandompass
+            - POSTGRES_USER=admin
+            - POSTGRES_DB=rentflix
+            - PGDATA=/var/lib/postgresql/data/pgdata
+        ports:
+            - 5432:5432
+volumes:
+    sample_db: {}
