@@ -28,12 +28,12 @@ import com.apmats.rentflix.exception.ResourceNotFoundException;
 import com.apmats.rentflix.model.Customer;
 import com.apmats.rentflix.model.Rental;
 
-import static  java.time.temporal.ChronoUnit.DAYS;
+import static java.time.temporal.ChronoUnit.DAYS;
 
 @Service
 public class RentService {
 
-	private static final Logger logger = LoggerFactory.getLogger(RentService.class);	
+	private static final Logger logger = LoggerFactory.getLogger(RentService.class);
 
 	private final Clock clock;
 	private final RentalRepository rentalRepository;
@@ -51,12 +51,14 @@ public class RentService {
 		this.customerRepository = customerRepository;
 	}
 
-	// A method that attempts to find a copy of each film and assign it to the customer
+	// A method that attempts to find a copy of each film and assign it to the
+	// customer
 	// If it succeeds it returns the total initial cost
-	// Transactional to avoid double assignments of the same physical copy to multiple concurrent customers
+	// Transactional to avoid double assignments of the same physical copy to
+	// multiple concurrent customers
 
 	@Transactional
-	public Map.Entry<Double,List<Long>> rentFilms(Long customerId, List<Long> filmIds) {
+	public Map.Entry<Double, List<Long>> rentFilms(Long customerId, List<Long> filmIds) {
 		// find an available copy for each film id
 		Customer customer = getCustomer(customerId);
 		Double totalCost = 0.0;
@@ -64,7 +66,8 @@ public class RentService {
 		for (Long filmId : filmIds) {
 			Optional<Film> maybeFilm = filmRepository.findById(filmId);
 			if (!maybeFilm.isPresent())
-				throw new ResourceNotFoundException("Tried to rent film with ID " + filmId + " but no such film exists");
+				throw new ResourceNotFoundException(
+						"Tried to rent film with ID " + filmId + " but no such film exists");
 			Film film = maybeFilm.get();
 			List<PhysicalMedia> availableCopies = physicalMediaRepository.findByAvailableTrueAndFilm(film);
 			if (availableCopies.isEmpty())
@@ -76,10 +79,11 @@ public class RentService {
 			rentalRepository.save(rental);
 			physicalMediaRepository.save(copyToRent);
 			totalCost += film.getRecencyType().getInitialCharge();
-			customer.setBonusPoints(customer.getBonusPoints()+film.getRecencyType().getBonus());
+			customer.setBonusPoints(customer.getBonusPoints() + film.getRecencyType().getBonus());
 		}
 		customerRepository.save(customer);
-		return new AbstractMap.SimpleEntry<Double,List<Long>>(totalCost, rentedCopies.stream().map(PhysicalMedia::getId).collect(Collectors.toList()));
+		return new AbstractMap.SimpleEntry<Double, List<Long>>(totalCost,
+				rentedCopies.stream().map(PhysicalMedia::getId).collect(Collectors.toList()));
 
 	}
 
@@ -93,19 +97,24 @@ public class RentService {
 		for (Long copyId : physicalMediaIds) {
 			Optional<PhysicalMedia> maybeCopy = physicalMediaRepository.findById(copyId);
 			if (!maybeCopy.isPresent())
-				throw new ResourceNotFoundException("Tried to return copy with ID " + copyId + " but no such copy exists");
+				throw new ResourceNotFoundException(
+						"Tried to return copy with ID " + copyId + " but no such copy exists");
 			if (maybeCopy.get().isAvailable())
-				throw new ResourceNotFoundException("Tried to return copy with ID " + copyId + " but no active rental record exists for that copy");
+				throw new ResourceNotFoundException(
+						"Tried to return copy with ID " + copyId + " but no active rental record exists for that copy");
 			// there should be a single active rental for a given copy
 			List<Rental> singleRentalList = rentalRepository.findByPhysicalMediaAndReturnDateIsNull(maybeCopy.get());
 			if (singleRentalList.isEmpty()) {
-				logger.error("Inconsistent database state detected, a copy with id " + copyId + " appears rented out but no corresponding rental entry exists");
-				throw new ResourceNotFoundException("Tried to return copy with ID " + copyId + " but no record of the rental action exists");
+				logger.error("Inconsistent database state detected, a copy with id " + copyId
+						+ " appears rented out but no corresponding rental entry exists");
+				throw new ResourceNotFoundException(
+						"Tried to return copy with ID " + copyId + " but no record of the rental action exists");
 			}
 			Rental rental = singleRentalList.get(0);
 			rental.setReturnDate(LocalDate.now(clock));
 			// offloads calculations to the billing strategy inside the film's recency type
-			totalSurcharge += rental.getPhysicalMedia().getFilm().getRecencyType().calculateSurcharge(DAYS.between(rental.getRentDate(), rental.getReturnDate()));
+			totalSurcharge += rental.getPhysicalMedia().getFilm().getRecencyType()
+					.calculateSurcharge(DAYS.between(rental.getRentDate(), rental.getReturnDate()));
 			rental.getPhysicalMedia().setAvailable(true);
 			rentalRepository.save(rental);
 			physicalMediaRepository.save(rental.getPhysicalMedia());
