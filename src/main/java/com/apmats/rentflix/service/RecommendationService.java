@@ -121,7 +121,6 @@ public class RecommendationService {
 		// experimentation, and could probably be configurable then
 		Integer k = Math.max(1, allCustomers.size() / 10);
 		KNNImputation knn = new KNNImputation(k);
-		logger.error(Arrays.deepToString(interactions));
 		try {
 			knn.impute(interactions);
 		} catch (Exception ex) {
@@ -129,7 +128,6 @@ public class RecommendationService {
 			throw new RecommendationComputationException(
 					"Failed to compute recommended films due to an internal error. Our engineers will be notified with the relevant logs");
 		}
-		logger.error(Arrays.deepToString(interactions));
 
 		Map<Film, Double> filmToScore = new LinkedHashMap<>();
 		for (int j = 0; j < allFilms.size(); j++) {
